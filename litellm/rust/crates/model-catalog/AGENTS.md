@@ -65,13 +65,15 @@ Catalog errors use one opaque `Error` with typed causes and JSON Pointer accesso
 - `cost.rs` is `CostLookup::candidates`, the `/v1/messages` Claude providers only (`CostProvider`). Any call main would price by another path is `AfterRows::Deferred` with its `Deferral`, so Python keeps pricing it. Rows before a deferral are still tried first, because main tries them first
 - `cost_candidates.json` is main's answer for each test case, captured once from `completion_cost` with `NativePrices` spied. Recapture it when main's selection changes on purpose, never to make a Rust change pass
 
-`view.rs` is everything resolving and pricing read from a host. `CostLookup` is the table and the context of one call, and `resolve/` is methods on it
+`view.rs` is everything resolving and pricing read from a host. `CostLookup` is the table and the context of one call, and `resolve/` and `pricing.rs` are methods on it
 
 - `CatalogView` is the whole table interface: exact key, folded key, a row's fields, its `registered_fields`, and `lowered`, whose default lowers the row each time it is asked. A host that keeps lowerings overrides it
-- `PricingContext` is the immutable rest: the capability rules and `KnownNames`, the two lists only Python has, every provider name and the model names `get_model_info` renames
+- `PricingContext` is the immutable rest: the capability rules, `KnownNames` (the two lists only Python has, every provider name and the model names `get_model_info` renames) and `CostConfig`, the discount and margin config
 - Nothing here versions, caches or swaps a table. A host whose table can change under it (python-bridge over `litellm.model_cost`) does that itself and hands in one view per call
 - `Catalog` is a `CatalogView` with no registrations, which is how the Rust host prices through the same path
 - A row is lowered with `litellm_provider` replaced by the billed provider, as `NativePrices` does
+
+`pricing.rs` is the glue `litellm-cost` prices through. `CostLookup::pricing_rows` fetches the rows one query may read (each candidate under the model name main priced it with, plus rows by key) into `PricingRows`, the core's `RowSource`, and `with_per_call` adds a row the caller passed for that call alone. `LoweredRow` is the core's `LoweredRow`, and its `RowFacts` (mode, max tokens, how main's `float()` reads `provider_specific_entry`, the raw keys the auth checks read) are read off the fields when the row is lowered
 
 ## Copied from main, fix later
 

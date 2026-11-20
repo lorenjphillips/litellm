@@ -8,7 +8,7 @@ use std::sync::Arc;
 use indexmap::IndexMap;
 
 use crate::store::{Rows, Store};
-use crate::view::{CatalogView, KnownNames, PricingContext};
+use crate::view::{CatalogView, CostConfig, KnownNames, PricingContext};
 use crate::wire::Fields;
 use crate::{CapabilityRules, CostMap};
 
@@ -104,6 +104,7 @@ pub(crate) fn context(names: KnownNames) -> PricingContext {
     PricingContext {
         rules: bundled_rules(),
         names,
+        config: Arc::new(CostConfig::default()),
     }
 }
 

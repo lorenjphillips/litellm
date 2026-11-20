@@ -5,11 +5,14 @@
 use std::collections::{BTreeSet, HashSet};
 use std::sync::Arc;
 
+use litellm_cost::adjust::{Discounts, Margins};
 use litellm_cost::price::Adjustments;
+use litellm_cost::row::RowFacts;
 use serde_json::Value;
 
 use crate::fallback::CapabilityRules;
 use crate::lower::{BilledPrices, billed_prices};
+use crate::pricing::row_facts;
 use crate::wire::{EntryWire, Fields};
 
 /// The fields that price a call without being a `*cost_per*token*` field, from main's `_NON_TOKEN_RATE_FIELDS`
@@ -44,11 +47,20 @@ pub struct KnownNames {
     pub renamed_models: HashSet<String>,
 }
 
-/// What resolving a call reads besides the table: the host's capability rules and the names only it knows
+/// `cost_discount_config` and `cost_margin_config`, which adjust a priced call
+#[derive(Clone, Debug, Default, PartialEq)]
+pub struct CostConfig {
+    pub discounts: Discounts,
+    pub margins: Margins,
+}
+
+/// What resolving and pricing a call read besides the table: the host's capability rules, the names only it knows,
+/// and the discount and margin config
 #[derive(Clone, Debug, Default)]
 pub struct PricingContext {
     pub rules: CapabilityRules,
     pub names: KnownNames,
+    pub config: Arc<CostConfig>,
 }
 
 /// Where a row came from. A `Registered` row is a deployment's row as the router registered it under its id
@@ -72,6 +84,7 @@ pub struct LoweredRow {
     pub fields: Arc<Fields>,
     pub prices: BilledPrices,
     pub adjustments: Adjustments,
+    pub facts: RowFacts,
 }
 
 /// A row ready for pricing, with the key and provenance it was found by
@@ -103,6 +116,7 @@ impl LoweredRow {
         Self {
             prices: billed_prices(&wire),
             adjustments: Adjustments::from(&wire),
+            facts: row_facts(&fields),
             fields,
         }
     }
